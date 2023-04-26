@@ -1,0 +1,69 @@
+name: Backend App Build & Deploy
+on:
+  push:
+    branches: 
+      - "main"
+
+env:
+  AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID }}   
+  AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_SSH_KEY_PRIVATE: ${{secrets.AWS_SSH_KEY_PRIVATE }} 
+  SERVER_PUBLIC_IP: ${{secrets.SERVER_PUBLIC_IP }}
+  SERVER_USERNAME: ${{secrets.SERVER_USERNAME }}
+  AWS_REGION: us-west-1
+
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/Checkout@v3
+      - name: Use Node.js 12.x
+        uses: actions/setup-node@v2
+        with:
+          node-version: '12.x'
+      - name: SSH Remote Commands
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: ${{ env.SERVER_PUBLIC_IP}}
+          key: ${{ env.AWS_SSH_KEY_PRIVATE }}
+          username: ${{ env.SERVER_USERNAME }}
+          script: |
+            echo "****************************************"
+            echo "Successfully logon to Backend Instance!!"
+            echo "****************************************"
+
+            sudo apt-get update
+            sudo apt-get install nodejs npm -y
+            sudo npm install -g pm2 -y
+            sudo pm2 startup systemd
+            echo "**********************************"
+            echo "Successfully Install Node Packages"
+            echo "**********************************"
+            
+            sudo apt-get install -y nginx
+            sudo systemctl start nginx
+            sudo systemctl enable nginx
+            echo "**************************"
+            echo "Successfully Install NGINX"
+            echo "**************************"
+            
+            sudo ls -al
+            git clone https://github.com/abdulmalik-devs/server.git
+            cd server
+            sudo npm install
+            
+            sudo ufw enable
+            sudo ufw allow OpenSSH
+            sudo ufw allow 'Nginx Full'
+            sudo ufw --force enable 
+            echo "*****************************"
+            echo "Firewall Sucessfully Enabled!"
+            echo "*****************************"
+            
+            sudo pm2 start index.js --name=backend
+            sudo pm2 restart backend
+            echo "**************************"
+            echo "PM2 Sucessfully Restarted!"
+            echo "**************************"
